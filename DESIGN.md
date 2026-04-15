@@ -169,6 +169,7 @@ game._currentSudoku._players[0][0] = 5;
 // 正确：通过公开 API
 game.guess(0, 0, 5);
 // 适配层调用 set() 触发 UI 更新
+``` 
 
 ## 四、改进说明
 
