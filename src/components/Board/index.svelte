@@ -1,11 +1,15 @@
 <script>
 	import { BOX_SIZE } from '@sudoku/constants';
 	import { gamePaused } from '@sudoku/stores/game';
-	import { grid, userGrid, invalidCells } from '@sudoku/stores/grid';
+	import { userGrid, invalidCells } from '@sudoku/stores/grid';
 	import { settings } from '@sudoku/stores/settings';
 	import { cursor } from '@sudoku/stores/cursor';
 	import { candidates } from '@sudoku/stores/candidates';
 	import Cell from './Cell.svelte';
+
+	function isFixed(x, y) {
+		return userGrid.isFixed ? userGrid.isFixed(x, y) : false;
+	}
 
 	function isSelected(cursorStore, x, y) {
 		return cursorStore.x === x && cursorStore.y === y;
@@ -24,7 +28,6 @@
 
 	function getValueAtCursor(gridStore, cursorStore) {
 		if (cursorStore.x === null && cursorStore.y === null) return null;
-
 		return gridStore[cursorStore.y][cursorStore.x];
 	}
 </script>
@@ -39,16 +42,18 @@
 
 			{#each $userGrid as row, y}
 				{#each row as value, x}
-					<Cell {value}
-					      cellY={y + 1}
-					      cellX={x + 1}
-					      candidates={$candidates[x + ',' + y]}
-					      disabled={$gamePaused}
-					      selected={isSelected($cursor, x, y)}
-					      userNumber={$grid[y][x] === 0}
-					      sameArea={$settings.highlightCells && !isSelected($cursor, x, y) && isSameArea($cursor, x, y)}
-					      sameNumber={$settings.highlightSame && value && !isSelected($cursor, x, y) && getValueAtCursor($userGrid, $cursor) === value}
-					      conflictingNumber={$settings.highlightConflicting && $grid[y][x] === 0 && $invalidCells.includes(x + ',' + y)} />
+					<Cell 
+						value={value}
+						cellY={y + 1}
+						cellX={x + 1}
+						candidates={$candidates[x + ',' + y]}
+						disabled={$gamePaused}
+						selected={isSelected($cursor, x, y)}
+						userNumber={!isFixed(x, y)}
+						sameArea={$settings.highlightCells && !isSelected($cursor, x, y) && isSameArea($cursor, x, y)}
+						sameNumber={$settings.highlightSame && value && !isSelected($cursor, x, y) && getValueAtCursor($userGrid, $cursor) === value}
+						conflictingNumber={$settings.highlightConflicting && !isFixed(x, y) && $invalidCells.includes(x + ',' + y)} 
+					/>
 				{/each}
 			{/each}
 

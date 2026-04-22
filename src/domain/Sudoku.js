@@ -214,22 +214,20 @@ export class Sudoku {
    *   sudoku.guess(0, 0, 5);
    * }
    */
+  // 只禁止固定格，允许所有输入（包括冲突）
   canGuess(row, col, value) {
     this._validatePosition(row, col);
     this._validateValue(value);
     
-    // 固定格不可修改
+    // 只有固定格不可修改
     if (this.isFixed(row, col)) return false;
     
-    // 清空操作总是允许
-    if (value === 0) return true;
-    
-    // 检查是否与现有数字冲突
-    return this._isValidPlacement(row, col, value, false);
+    // 允许任何输入（包括冲突），冲突交给 getInvalidCells 处理
+    return true;
   }
 
   /**
-   * 在指定位置填入数字（玩家操作）
+   * 在指定位置 填入数字（玩家操作）
    * 
    * @param {number|Object} rowOrMove - 行索引 0-8 或移动对象 {row, col, value}
    * @param {number} [col] - 列索引 0-8（当第一个参数是数字时）
@@ -516,21 +514,53 @@ export class Sudoku {
       throw new Error('Invalid JSON: missing givens or players');
     }
     
+    // 验证尺寸
+    if (data.givens.length !== 9 || data.players.length !== 9) {
+      throw new Error('Invalid JSON: grid must be 9x9');
+    }
+    
+    // 先创建基础 Sudoku（会验证 givens）
     const sudoku = new Sudoku(data.givens);
-    for (let i = 0; i < SUDOKU_SIZE; i++) {
-      for (let j = 0; j < SUDOKU_SIZE; j++) {
-        sudoku._players[i][j] = data.players[i][j];
+    
+    // 验证并恢复 players（不能覆盖固定格）
+    for (let i = 0; i < 9; i++) {
+      for (let j = 0; j < 9; j++) {
+        const playerVal = data.players[i][j];
+        const givenVal = data.givens[i][j];
+        
+        // 验证值域
+        if (playerVal < 0 || playerVal > 9 || !Number.isInteger(playerVal)) {
+          throw new Error(`Invalid player value at (${i},${j}): ${playerVal}`);
+        }
+        
+        // 不能覆盖固定格
+        if (givenVal !== 0 && playerVal !== 0 && playerVal !== givenVal) {
+          throw new Error(`Cannot override fixed cell at (${i},${j})`);
+        }
+        
+        sudoku._players[i][j] = playerVal;
       }
     }
-    
-    if (data.candidates && Array.isArray(data.candidates)) {
-      for (const [key, candidates] of data.candidates) {
-        sudoku._candidates.set(key, new Set(candidates));
+  
+  // 恢复候选数
+  if (data.candidates && Array.isArray(data.candidates)) {
+    for (const [key, candidates] of data.candidates) {
+      const [row, col] = key.split(',').map(Number);
+      
+      // 固定格或已填格不能有候选数
+      if (sudoku.isFixed(row, col)) continue;
+      if (sudoku._players[row][col] !== 0) continue;
+      
+      // 验证候选数
+      const validCandidates = candidates.filter(c => c >= 1 && c <= 9 && Number.isInteger(c));
+      if (validCandidates.length > 0) {
+        sudoku._candidates.set(key, new Set(validCandidates));
       }
     }
-    
-    return sudoku;
   }
+  
+  return sudoku;
+}
 
   /**
    * 返回棋盘的带边框字符串表示（用于调试）
